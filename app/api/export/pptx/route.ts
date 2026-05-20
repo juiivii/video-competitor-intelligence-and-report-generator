@@ -46,9 +46,15 @@ export async function POST(req: Request) {
     }
 
     // Create buffer
-    const buffer = await pptx.write("nodebuffer");
+    const buffer = await pptx.write({
+  outputType: "nodebuffer"
+}) as Buffer;
 
-    console.log('PPT generated successfully:', Math.round(buffer.length / 1024), 'KB');
+console.log(
+  'PPT generated successfully:',
+  Math.round(buffer.length / 1024),
+  'KB'
+);
 
     return new Response(buffer as BlobPart, {
       status: 200,

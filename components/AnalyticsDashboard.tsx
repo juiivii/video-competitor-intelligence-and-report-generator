@@ -34,16 +34,128 @@ function fmt(num: number): string {
   return String(Math.round(num));
 }
 
-function safeNum(val: unknown): number {
-  const n = Number(val);
-  return isFinite(n) ? n : 0;
+// ─────────────────────────────────────────────────────────────
+// BULLETPROOF EXTRACTION ENGINES
+// ─────────────────────────────────────────────────────────────
+
+function extractNumber(val: any): number | null {
+  if (val === undefined || val === null) return null;
+  if (typeof val === 'number') return isFinite(val) ? val : null;
+  if (typeof val === 'string') {
+    const parsed = parseFloat(val.replace(/[^0-9.-]+/g, ''));
+    return !isNaN(parsed) && isFinite(parsed) ? parsed : null;
+  }
+  if (typeof val === 'object') {
+    const numericKeys = ['value', 'rate', 'score', 'amount', 'count', 'frequency', 'consistency', 'avg', 'average'];
+    for (const k of numericKeys) {
+      const num = extractNumber(val[k]);
+      if (num !== null) return num;
+    }
+    for (const key in val) {
+      const num = extractNumber(val[key]);
+      if (num !== null) return num;
+    }
+  }
+  return null;
 }
 
-// FIX: robust array extraction — guards against undefined, null, non-array
-function safeArr(val: unknown): string[] {
-  if (Array.isArray(val)) return val.filter((v) => typeof v === 'string' && v.length > 0);
+function findMetric(obj: any, possibleKeys: string[]): number {
+  if (!obj || typeof obj !== 'object') return 0;
+  
+  for (const k of possibleKeys) {
+    if (obj[k] !== undefined && obj[k] !== null) {
+      const num = extractNumber(obj[k]);
+      if (num !== null) return num;
+    }
+  }
+  
+  for (const key in obj) {
+    const child = obj[key];
+    if (child && typeof child === 'object' && !Array.isArray(child)) {
+      for (const k of possibleKeys) {
+        if (child[k] !== undefined && child[k] !== null) {
+          const num = extractNumber(child[k]);
+          if (num !== null) return num;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+function extractStringFromItem(item: any): string {
+  if (!item) return '';
+  if (typeof item === 'string') return item;
+  if (typeof item === 'object') {
+    const candidates = ['text', 'description', 'value', 'strength', 'weakness', 'opportunity', 'content', 'title', 'message'];
+    for (const c of candidates) {
+      if (item[c] && typeof item[c] === 'string') return item[c];
+    }
+    if (item.title && item.description) {
+      return `${item.title}: ${item.description}`;
+    }
+    for (const key in item) {
+      if (typeof item[key] === 'string') return item[key];
+    }
+  }
+  return String(item);
+}
+
+function cleanStringList(arr: any[]): string[] {
+  return arr
+    .map(extractStringFromItem)
+    .map(s => s.replace(/^[-*•\d.\s]+/, '').trim())
+    .filter(s => s.length > 0 && s !== '[object Object]');
+}
+
+function extractArrayLocally(val: unknown): string[] | null {
+  if (!val) return null;
+  if (Array.isArray(val)) {
+    const cleaned = cleanStringList(val);
+    if (cleaned.length > 0) return cleaned;
+  }
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) {
+        const cleaned = cleanStringList(parsed);
+        if (cleaned.length > 0) return cleaned;
+      }
+    } catch {
+      if (val.includes('\n')) {
+        const cleaned = cleanStringList(val.split('\n'));
+        if (cleaned.length > 0) return cleaned;
+      }
+      const cleaned = cleanStringList([val]);
+      if (cleaned.length > 0) return cleaned;
+    }
+  }
+  return null;
+}
+
+function findArray(obj: any, possibleKeys: string[]): string[] {
+  if (!obj || typeof obj !== 'object') return [];
+  
+  for (const k of possibleKeys) {
+    const found = extractArrayLocally(obj[k]);
+    if (found) return found;
+  }
+  
+  for (const key in obj) {
+    const child = obj[key];
+    if (child && typeof child === 'object') {
+      for (const k of possibleKeys) {
+        const found = extractArrayLocally(child[k]);
+        if (found) return found;
+      }
+    }
+  }
   return [];
 }
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENTS
+// ─────────────────────────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -71,7 +183,49 @@ function ChartTitle({ icon, children }: { icon: React.ReactNode; children: React
 
 export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
+
+  if (!report || !Array.isArray(report.competitors) || report.competitors.length === 0) {
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontFamily: 'system-ui,sans-serif' }}>
+        <p>No report data available. Please run an analysis first.</p>
+      </div>
+    );
+  }
+
+  const sorted = [...report.competitors].sort((a, b) => findMetric(b, ['overallScore', 'score']) - findMetric(a, ['overallScore', 'score']));
+  const maxScore = Math.max(...sorted.map(c => findMetric(c, ['overallScore', 'score'])), 1);
+  const avgScore = report.competitors.reduce((s, c) => s + findMetric(c, ['overallScore', 'score']), 0) / report.competitors.length;
+
+  const subscriberData = report.competitors.map(c => ({
+    name: c.company || 'Unknown',
+    subscribers: findMetric(c, ['subscriberCount', 'subscribers', 'subscriber_count']),
+  }));
+
+  const engagementData = report.competitors.map(c => ({
+    name: c.company || 'Unknown',
+    engagement: findMetric(c, ['engagementRate', 'engagement', 'engagement_rate', 'engagementPercentage']),
+    avgViews: findMetric(c, ['averageViews', 'avgViews', 'average_views']),
+  }));
+
+  const frequencyData = report.competitors.map(c => ({
+    name: c.company || 'Unknown',
+    uploadsPerMonth: findMetric(c, ['uploadFrequency', 'uploadsPerMonth', 'uploads_per_month', 'frequency']),
+    consistency: findMetric(c, ['uploadConsistency', 'consistency']),
+  }));
+
+  const maxSubs = Math.max(...report.competitors.map(c => findMetric(c, ['subscriberCount', 'subscribers'])), 1);
+  const maxViews = Math.max(...report.competitors.map(c => findMetric(c, ['totalViews', 'views'])), 1);
+  const maxVids = Math.max(...report.competitors.map(c => findMetric(c, ['totalVideos', 'videos'])), 1);
+
+  const radarData = report.competitors.map(c => ({
+    name: c.company || 'Unknown',
+    subscribers: Math.round((findMetric(c, ['subscriberCount', 'subscribers']) / maxSubs) * 100) || 0,
+    views: Math.round((findMetric(c, ['totalViews', 'views']) / maxViews) * 100) || 0,
+    videos: Math.round((findMetric(c, ['totalVideos', 'videos']) / maxVids) * 100) || 0,
+  }));
+
+  const allEngagementZero = engagementData.every(d => d.engagement === 0);
+  const allFrequencyZero = frequencyData.every(d => d.uploadsPerMonth === 0 && d.consistency === 0);
 
   const handleExport = async () => {
     try {
@@ -92,51 +246,6 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
     finally { setIsExporting(false); }
   };
 
-  if (!report || !Array.isArray(report.competitors) || report.competitors.length === 0) {
-    return (
-      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontFamily: 'system-ui,sans-serif' }}>
-        <p>No report data available. Please run an analysis first.</p>
-      </div>
-    );
-  }
-
-  const sorted = [...report.competitors].sort((a, b) => safeNum(b.overallScore) - safeNum(a.overallScore));
-  const maxScore = Math.max(...sorted.map(c => safeNum(c.overallScore)), 1);
-  const avgScore = report.competitors.reduce((s, c) => s + safeNum(c.overallScore), 0) / report.competitors.length;
-
-  const subscriberData = report.competitors.map(c => ({
-    name: c.company,
-    subscribers: safeNum(c.subscriberCount),
-  }));
-
-  const engagementData = report.competitors.map(c => ({
-    name: c.company,
-    engagement: safeNum(c.analytics?.engagementRate),
-    avgViews: safeNum(c.analytics?.averageViews),
-    avgLikes: safeNum(c.analytics?.averageLikes),
-    avgComments: safeNum(c.analytics?.averageComments),
-  }));
-
-  const frequencyData = report.competitors.map(c => ({
-    name: c.company,
-    uploadsPerMonth: safeNum(c.analytics?.uploadFrequency),
-    consistency: safeNum(c.analytics?.uploadConsistency),
-  }));
-
-  const maxSubs = Math.max(...report.competitors.map(c => safeNum(c.subscriberCount)), 1);
-  const maxViews = Math.max(...report.competitors.map(c => safeNum(c.totalViews)), 1);
-  const maxVids = Math.max(...report.competitors.map(c => safeNum(c.totalVideos)), 1);
-
-  const radarData = report.competitors.map(c => ({
-    name: c.company,
-    subscribers: Math.round((safeNum(c.subscriberCount) / maxSubs) * 100),
-    views: Math.round((safeNum(c.totalViews) / maxViews) * 100),
-    videos: Math.round((safeNum(c.totalVideos) / maxVids) * 100),
-  }));
-
-  const allEngagementZero = engagementData.every(d => d.engagement === 0);
-  const allFrequencyZero = frequencyData.every(d => d.uploadsPerMonth === 0 && d.consistency === 0);
-
   return (
     <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: C.bg, fontFamily: 'system-ui,-apple-system,sans-serif', color: C.text }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px' }}>
@@ -149,33 +258,10 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
             </div>
             <h1 style={{ fontSize: '36px', fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Video Intelligence Report</h1>
             <p style={{ fontSize: '14px', color: C.muted, margin: 0 }}>
-              Generated on {new Date(report.generatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              Generated on {new Date(report.generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
         </div>
-
-        {/* Debug Panel */}
-        {showDebug && (
-          <div style={{ marginBottom: '32px', background: '#0A0A1A', border: `1px solid ${C.border}`, borderRadius: '12px', padding: '20px', overflow: 'auto' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.warning, margin: '0 0 12px' }}>⚠ Debug: Raw Analytics Data</p>
-            <pre style={{ fontSize: '11px', color: C.muted, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-              {JSON.stringify(
-                report.competitors.map(c => ({
-                  company: c.company,
-                  overallScore: c.overallScore,
-                  subscriberCount: c.subscriberCount,
-                  totalViews: c.totalViews,
-                  totalVideos: c.totalVideos,
-                  strengths: c.strengths,
-                  weaknesses: c.weaknesses,
-                  opportunities: c.opportunities,
-                  analytics: c.analytics,
-                })),
-                null, 2
-              )}
-            </pre>
-          </div>
-        )}
 
         {/* Executive Summary */}
         <div style={{ marginBottom: '48px' }}>
@@ -200,25 +286,30 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
           <SectionTitle>Competitive Rankings</SectionTitle>
           <Card>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {sorted.map((comp, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: idx === 0 ? C.primary : C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
-                    {idx + 1}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 600, color: C.text, margin: '0 0 2px', fontSize: '15px' }}>{comp.company}</p>
-                    <p style={{ fontSize: '12px', color: C.faint, margin: 0 }}>
-                      {fmt(safeNum(comp.subscriberCount))} subscribers · {fmt(safeNum(comp.totalVideos))} videos
-                    </p>
-                  </div>
-                  <div style={{ width: '200px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ flex: 1, background: C.cardAlt, borderRadius: '6px', height: '8px' }}>
-                      <div style={{ width: `${(safeNum(comp.overallScore) / maxScore) * 100}%`, background: safeNum(comp.overallScore) >= 70 ? C.success : safeNum(comp.overallScore) >= 40 ? C.warning : C.danger, borderRadius: '6px', height: '8px' }} />
+              {sorted.map((comp, idx) => {
+                const score = findMetric(comp, ['overallScore', 'score']);
+                const subs = findMetric(comp, ['subscriberCount', 'subscribers']);
+                const vids = findMetric(comp, ['totalVideos', 'videos']);
+                return (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: idx === 0 ? C.primary : C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                      {idx + 1}
                     </div>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: C.text, minWidth: '45px', textAlign: 'right' }}>{safeNum(comp.overallScore).toFixed(1)}</span>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 600, color: C.text, margin: '0 0 2px', fontSize: '15px' }}>{comp.company}</p>
+                      <p style={{ fontSize: '12px', color: C.faint, margin: 0 }}>
+                        {fmt(subs)} subscribers · {fmt(vids)} videos
+                      </p>
+                    </div>
+                    <div style={{ width: '200px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ flex: 1, background: C.cardAlt, borderRadius: '6px', height: '8px' }}>
+                        <div style={{ width: `${(score / maxScore) * 100}%`, background: score >= 70 ? C.success : score >= 40 ? C.warning : C.danger, borderRadius: '6px', height: '8px' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: C.text, minWidth: '45px', textAlign: 'right' }}>{score.toFixed(1)}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         </div>
@@ -237,23 +328,27 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
               </thead>
               <tbody>
                 {report.competitors.map((comp, idx) => {
-                  const an = comp.analytics ?? {};
-                  const avgViews = safeNum(an.averageViews) ||
-                    (safeNum(comp.totalViews) > 0 && safeNum(comp.totalVideos) > 0
-                      ? Math.round(safeNum(comp.totalViews) / safeNum(comp.totalVideos))
-                      : 0);
+                  const subs = findMetric(comp, ['subscriberCount', 'subscribers']);
+                  const totalViews = findMetric(comp, ['totalViews', 'views']);
+                  const totalVideos = findMetric(comp, ['totalVideos', 'videos']);
+                  const avgViews = findMetric(comp, ['averageViews', 'avgViews']) || 
+                    (totalViews > 0 && totalVideos > 0 ? Math.round(totalViews / totalVideos) : 0);
+                  
+                  const engagementRate = findMetric(comp, ['engagementRate', 'engagement', 'engagement_rate', 'engagementPercentage']);
+                  const uploadFrequency = findMetric(comp, ['uploadFrequency', 'uploadsPerMonth', 'uploads_per_month', 'frequency']);
+
                   return (
                     <tr key={idx} style={{ borderBottom: `1px solid ${C.border}`, background: idx % 2 === 0 ? 'transparent' : C.bgAlt }}>
                       <td style={{ padding: '14px 16px', fontWeight: 600, color: C.text, fontSize: '14px' }}>{comp.company}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(safeNum(comp.subscriberCount))}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(safeNum(comp.totalViews))}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(safeNum(comp.totalVideos))}</td>
+                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(subs)}</td>
+                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(totalViews)}</td>
+                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(totalVideos)}</td>
                       <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(avgViews)}</td>
                       <td style={{ padding: '14px 16px', color: C.success, fontSize: '14px', fontWeight: 600 }}>
-                        {safeNum(an.engagementRate).toFixed(2)}%
+                        {engagementRate.toFixed(2)}%
                       </td>
                       <td style={{ padding: '14px 16px', color: C.secondary, fontSize: '14px', fontWeight: 600 }}>
-                        {safeNum(an.uploadFrequency).toFixed(1)}
+                        {uploadFrequency.toFixed(1)}
                       </td>
                     </tr>
                   );
@@ -333,16 +428,14 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
           )}
         </div>
 
-        {/* Strategic Insights — FIXED */}
+        {/* Strategic Insights */}
         <div style={{ marginBottom: '48px' }}>
           <SectionTitle>Strategic Insights</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {report.competitors.map((comp, idx) => {
-              // FIX: use safeArr() instead of (comp.x || []) to properly handle
-              // undefined, null, and non-array values coming from API serialization
-              const strengths     = safeArr(comp.strengths);
-              const weaknesses    = safeArr(comp.weaknesses);
-              const opportunities = safeArr(comp.opportunities);
+              const strengths = findArray(comp, ['strengths', 'strength', 'keyStrengths']);
+              const weaknesses = findArray(comp, ['weaknesses', 'weakness', 'areasForImprovement']);
+              const opportunities = findArray(comp, ['opportunities', 'opportunity', 'growthOpportunities']);
 
               return (
                 <div
@@ -354,13 +447,12 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
                     padding: '24px',
                   }}
                 >
-                  {/* Card header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                     <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1A1040', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Zap size={18} color={C.primary} />
                     </div>
                     <div>
-                      <p style={{ fontWeight: 700, fontSize: '16px', color: C.text, margin: 0 }}>{comp.company}</p>
+                      <p style={{ fontWeight: 700, fontSize: '16px', color: C.text, margin: 0 }}>{comp.company || 'Unknown Channel'}</p>
                       <p style={{ fontSize: '11px', color: C.faint, margin: 0 }}>Strategic channel intelligence</p>
                     </div>
                   </div>
@@ -422,7 +514,7 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
           </div>
         </div>
 
-        {/* Export button */}
+        {/* Export Button */}
         <button
           onClick={handleExport}
           disabled={isExporting}
