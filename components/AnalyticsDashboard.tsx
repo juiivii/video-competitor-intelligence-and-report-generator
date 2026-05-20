@@ -7,6 +7,7 @@ import {
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell,
 } from 'recharts';
+import { useIsMobile } from '@/lib/hooks/useIsMobile';
 
 interface AnalyticsDashboardProps {
   report: AnalysisReport;
@@ -61,14 +62,14 @@ function extractNumber(val: any): number | null {
 
 function findMetric(obj: any, possibleKeys: string[]): number {
   if (!obj || typeof obj !== 'object') return 0;
-  
+
   for (const k of possibleKeys) {
     if (obj[k] !== undefined && obj[k] !== null) {
       const num = extractNumber(obj[k]);
       if (num !== null) return num;
     }
   }
-  
+
   for (const key in obj) {
     const child = obj[key];
     if (child && typeof child === 'object' && !Array.isArray(child)) {
@@ -135,12 +136,12 @@ function extractArrayLocally(val: unknown): string[] | null {
 
 function findArray(obj: any, possibleKeys: string[]): string[] {
   if (!obj || typeof obj !== 'object') return [];
-  
+
   for (const k of possibleKeys) {
     const found = extractArrayLocally(obj[k]);
     if (found) return found;
   }
-  
+
   for (const key in obj) {
     const child = obj[key];
     if (child && typeof child === 'object') {
@@ -183,6 +184,7 @@ function ChartTitle({ icon, children }: { icon: React.ReactNode; children: React
 
 export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const isMobile = useIsMobile();
 
   if (!report || !Array.isArray(report.competitors) || report.competitors.length === 0) {
     return (
@@ -246,35 +248,48 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
     finally { setIsExporting(false); }
   };
 
+  const px = isMobile ? '16px' : '48px';
+  const twoCol = isMobile ? '1fr' : '1fr 1fr';
+  const threeCol = isMobile ? '1fr' : 'repeat(3, 1fr)';
+  const chartHeight = isMobile ? 200 : 260;
+
   return (
     <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: C.bg, fontFamily: 'system-ui,-apple-system,sans-serif', color: C.text }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '28px 16px' : '48px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '48px' }}>
+        <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: '16px', marginBottom: '40px' }}>
           <div>
             <div style={{ fontSize: '11px', color: C.primary, fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '10px' }}>
               Analysis Complete
             </div>
-            <h1 style={{ fontSize: '36px', fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Video Intelligence Report</h1>
+            <h1 style={{ fontSize: isMobile ? '26px' : '36px', fontWeight: 700, color: C.text, margin: '0 0 8px' }}>Video Intelligence Report</h1>
             <p style={{ fontSize: '14px', color: C.muted, margin: 0 }}>
               Generated on {new Date(report.generatedAt || Date.now()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            style={{ flexShrink: 0, background: C.primary, border: 'none', borderRadius: '12px', padding: '12px 20px', fontSize: '14px', fontWeight: 600, color: '#fff', cursor: isExporting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'inherit', opacity: isExporting ? 0.7 : 1, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
+          >
+            <Download size={16} />
+            {isExporting ? 'Generating...' : 'Export as PowerPoint'}
+          </button>
         </div>
 
         {/* Executive Summary */}
-        <div style={{ marginBottom: '48px' }}>
+        <div style={{ marginBottom: '40px' }}>
           <SectionTitle>Executive Summary</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: threeCol, gap: '16px' }}>
             {[
               { label: 'Market Leader', value: report.summary?.topPerformer ?? sorted[0]?.company ?? '—', sub: 'Highest overall competitive score', color: C.primary },
               { label: 'Average Performance', value: `${avgScore.toFixed(1)}/100`, sub: 'Across all analyzed competitors', color: C.success },
               { label: 'Channels Analyzed', value: String(report.competitors.length), sub: 'Professional YouTube channels', color: C.secondary },
             ].map((m, i) => (
-              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${m.color}`, borderRadius: '16px', padding: '24px' }}>
+              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderLeft: `3px solid ${m.color}`, borderRadius: '16px', padding: isMobile ? '18px' : '24px' }}>
                 <p style={{ fontSize: '12px', color: C.muted, margin: '0 0 8px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</p>
-                <p style={{ fontSize: '28px', fontWeight: 700, color: C.text, margin: '0 0 6px' }}>{m.value}</p>
+                <p style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: 700, color: C.text, margin: '0 0 6px' }}>{m.value}</p>
                 <p style={{ fontSize: '12px', color: C.faint, margin: 0 }}>{m.sub}</p>
               </div>
             ))}
@@ -282,7 +297,7 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
         </div>
 
         {/* Rankings */}
-        <div style={{ marginBottom: '48px' }}>
+        <div style={{ marginBottom: '40px' }}>
           <SectionTitle>Competitive Rankings</SectionTitle>
           <Card>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -291,21 +306,23 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
                 const subs = findMetric(comp, ['subscriberCount', 'subscribers']);
                 const vids = findMetric(comp, ['totalVideos', 'videos']);
                 return (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: idx === 0 ? C.primary : C.cardAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
                       {idx + 1}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontWeight: 600, color: C.text, margin: '0 0 2px', fontSize: '15px' }}>{comp.company}</p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, color: C.text, margin: '0 0 2px', fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{comp.company}</p>
                       <p style={{ fontSize: '12px', color: C.faint, margin: 0 }}>
-                        {fmt(subs)} subscribers · {fmt(vids)} videos
+                        {fmt(subs)} subs · {fmt(vids)} videos
                       </p>
                     </div>
-                    <div style={{ width: '200px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ flex: 1, background: C.cardAlt, borderRadius: '6px', height: '8px' }}>
-                        <div style={{ width: `${(score / maxScore) * 100}%`, background: score >= 70 ? C.success : score >= 40 ? C.warning : C.danger, borderRadius: '6px', height: '8px' }} />
-                      </div>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: C.text, minWidth: '45px', textAlign: 'right' }}>{score.toFixed(1)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {!isMobile && (
+                        <div style={{ width: '120px', background: C.cardAlt, borderRadius: '6px', height: '8px' }}>
+                          <div style={{ width: `${(score / maxScore) * 100}%`, background: score >= 70 ? C.success : score >= 40 ? C.warning : C.danger, borderRadius: '6px', height: '8px' }} />
+                        </div>
+                      )}
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: C.text, minWidth: '38px', textAlign: 'right' }}>{score.toFixed(1)}</span>
                     </div>
                   </div>
                 );
@@ -315,59 +332,61 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
         </div>
 
         {/* Channel Comparison Table */}
-        <div style={{ marginBottom: '48px' }}>
+        <div style={{ marginBottom: '40px' }}>
           <SectionTitle>Channel Comparison</SectionTitle>
-          <Card>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                  {['Company', 'Subscribers', 'Total Views', 'Videos', 'Avg Views', 'Engagement', 'Uploads/Mo'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: C.faint, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {report.competitors.map((comp, idx) => {
-                  const subs = findMetric(comp, ['subscriberCount', 'subscribers']);
-                  const totalViews = findMetric(comp, ['totalViews', 'views']);
-                  const totalVideos = findMetric(comp, ['totalVideos', 'videos']);
-                  const avgViews = findMetric(comp, ['averageViews', 'avgViews']) || 
-                    (totalViews > 0 && totalVideos > 0 ? Math.round(totalViews / totalVideos) : 0);
-                  
-                  const engagementRate = findMetric(comp, ['engagementRate', 'engagement', 'engagement_rate', 'engagementPercentage']);
-                  const uploadFrequency = findMetric(comp, ['uploadFrequency', 'uploadsPerMonth', 'uploads_per_month', 'frequency']);
+          <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {['Company', 'Subscribers', 'Total Views', 'Videos', 'Avg Views', 'Engagement', 'Uploads/Mo'].map(h => (
+                      <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: C.faint, textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.competitors.map((comp, idx) => {
+                    const subs = findMetric(comp, ['subscriberCount', 'subscribers']);
+                    const totalViews = findMetric(comp, ['totalViews', 'views']);
+                    const totalVideos = findMetric(comp, ['totalVideos', 'videos']);
+                    const avgViews = findMetric(comp, ['averageViews', 'avgViews']) ||
+                      (totalViews > 0 && totalVideos > 0 ? Math.round(totalViews / totalVideos) : 0);
 
-                  return (
-                    <tr key={idx} style={{ borderBottom: `1px solid ${C.border}`, background: idx % 2 === 0 ? 'transparent' : C.bgAlt }}>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: C.text, fontSize: '14px' }}>{comp.company}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(subs)}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(totalViews)}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(totalVideos)}</td>
-                      <td style={{ padding: '14px 16px', color: C.muted, fontSize: '14px' }}>{fmt(avgViews)}</td>
-                      <td style={{ padding: '14px 16px', color: C.success, fontSize: '14px', fontWeight: 600 }}>
-                        {engagementRate.toFixed(2)}%
-                      </td>
-                      <td style={{ padding: '14px 16px', color: C.secondary, fontSize: '14px', fontWeight: 600 }}>
-                        {uploadFrequency.toFixed(1)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    const engagementRate = findMetric(comp, ['engagementRate', 'engagement', 'engagement_rate', 'engagementPercentage']);
+                    const uploadFrequency = findMetric(comp, ['uploadFrequency', 'uploadsPerMonth', 'uploads_per_month', 'frequency']);
+
+                    return (
+                      <tr key={idx} style={{ borderBottom: `1px solid ${C.border}`, background: idx % 2 === 0 ? 'transparent' : C.bgAlt }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: C.text, fontSize: '13px', whiteSpace: 'nowrap' }}>{comp.company}</td>
+                        <td style={{ padding: '12px 14px', color: C.muted, fontSize: '13px', whiteSpace: 'nowrap' }}>{fmt(subs)}</td>
+                        <td style={{ padding: '12px 14px', color: C.muted, fontSize: '13px', whiteSpace: 'nowrap' }}>{fmt(totalViews)}</td>
+                        <td style={{ padding: '12px 14px', color: C.muted, fontSize: '13px', whiteSpace: 'nowrap' }}>{fmt(totalVideos)}</td>
+                        <td style={{ padding: '12px 14px', color: C.muted, fontSize: '13px', whiteSpace: 'nowrap' }}>{fmt(avgViews)}</td>
+                        <td style={{ padding: '12px 14px', color: C.success, fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {engagementRate.toFixed(2)}%
+                        </td>
+                        <td style={{ padding: '12px 14px', color: C.secondary, fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {uploadFrequency.toFixed(1)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </div>
 
         {/* Charts Row 1 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: '24px', marginBottom: '24px' }}>
           <Card>
             <ChartTitle icon={<BarChart3 size={18} color={C.secondary} />}>Subscriber Analysis</ChartTitle>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart data={subscriberData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: 12 }} />
-                <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={v => fmt(v)} />
-                <Tooltip formatter={(v) => [fmt(v as number), 'Subscribers']} contentStyle={tooltipStyle} labelStyle={{ color: '#FFFFFF' }} itemStyle={{ color: '#FFFFFF' }} />
+                <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: isMobile ? 10 : 12 }} />
+                <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={v => fmt(v)} width={40} />
+                <Tooltip formatter={(v) => [fmt(v as number), 'Subscribers']} contentStyle={tooltipStyle} labelStyle={{ color: C.text }} itemStyle={{ color: C.text }} />
                 <Bar dataKey="subscribers" radius={[6, 6, 0, 0]}>
                   {subscriberData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                 </Bar>
@@ -377,10 +396,10 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
 
           <Card>
             <ChartTitle icon={<Target size={18} color={C.primary} />}>Competitive Landscape</ChartTitle>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
               <RadarChart data={radarData}>
                 <PolarGrid stroke={C.border} />
-                <PolarAngleAxis dataKey="name" tick={{ fill: C.muted, fontSize: 12 }} />
+                <PolarAngleAxis dataKey="name" tick={{ fill: C.muted, fontSize: isMobile ? 10 : 12 }} />
                 <PolarRadiusAxis tick={{ fill: C.faint, fontSize: 10 }} />
                 <Radar name="Subscribers" dataKey="subscribers" stroke={C.secondary} fill={C.secondary} fillOpacity={0.2} />
                 <Radar name="Views" dataKey="views" stroke={C.success} fill={C.success} fillOpacity={0.2} />
@@ -392,16 +411,16 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
         </div>
 
         {/* Charts Row 2 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: '24px', marginBottom: '24px' }}>
           {!allEngagementZero && (
             <Card>
               <ChartTitle icon={<Activity size={18} color={C.success} />}>Engagement Rate Comparison</ChartTitle>
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={chartHeight}>
                 <BarChart data={engagementData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                  <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: 12 }} />
-                  <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(v) => `${(v as number).toFixed(2)}%`} contentStyle={tooltipStyle} />
+                  <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: isMobile ? 10 : 12 }} />
+                  <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} tickFormatter={(v) => `${v}%`} width={40} />
+                  <Tooltip formatter={(v) => [`${(v as number).toFixed(2)}%`, 'Engagement']} contentStyle={tooltipStyle} labelStyle={{ color: C.text }} itemStyle={{ color: C.text }} />
                   <Bar dataKey="engagement" name="Engagement %" radius={[6, 6, 0, 0]}>
                     {engagementData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Bar>
@@ -413,12 +432,12 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
           {!allFrequencyZero && (
             <Card>
               <ChartTitle icon={<TrendingUp size={18} color={C.warning} />}>Upload Frequency & Consistency</ChartTitle>
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={chartHeight}>
                 <BarChart data={frequencyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
-                  <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: 12 }} />
-                  <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <XAxis dataKey="name" stroke={C.faint} tick={{ fill: C.muted, fontSize: isMobile ? 10 : 12 }} />
+                  <YAxis stroke={C.faint} tick={{ fill: C.muted, fontSize: 11 }} width={36} />
+                  <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: C.text }} itemStyle={{ color: C.text }} />
                   <Legend wrapperStyle={{ color: C.muted, fontSize: '12px' }} />
                   <Bar dataKey="uploadsPerMonth" name="Uploads/Month" fill={C.warning} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="consistency" name="Consistency Score" fill={C.secondary} radius={[4, 4, 0, 0]} />
@@ -429,9 +448,9 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
         </div>
 
         {/* Strategic Insights */}
-        <div style={{ marginBottom: '48px' }}>
+        <div style={{ marginBottom: '40px' }}>
           <SectionTitle>Strategic Insights</SectionTitle>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: twoCol, gap: '20px' }}>
             {report.competitors.map((comp, idx) => {
               const strengths = findArray(comp, ['strengths', 'strength', 'keyStrengths']);
               const weaknesses = findArray(comp, ['weaknesses', 'weakness', 'areasForImprovement']);
@@ -444,11 +463,11 @@ export function AnalyticsDashboard({ report }: AnalyticsDashboardProps) {
                     background: C.card,
                     border: `1px solid ${C.border}`,
                     borderRadius: '16px',
-                    padding: '24px',
+                    padding: isMobile ? '18px' : '24px',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#1A1040', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: '38px', height: '38px', flexShrink: 0, borderRadius: '10px', background: '#1A1040', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <Zap size={18} color={C.primary} />
                     </div>
                     <div>

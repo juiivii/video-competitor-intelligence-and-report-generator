@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { ChannelSearchResult } from '@/lib/types';
+import { useIsMobile } from '@/lib/hooks/useIsMobile';
 
 interface ChannelDiscoveryProps {
   companies: string[];
@@ -19,6 +20,7 @@ export function ChannelDiscovery({
   const [selectedChannels, setSelectedChannels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     searchChannels();
@@ -71,17 +73,19 @@ export function ChannelDiscovery({
     : n >= 1_000 ? `${(n / 1_000).toFixed(0)}K subscribers`
     : `${n} subscribers`;
 
+  const px = isMobile ? '16px' : '48px';
+
   return (
-    <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#0B1020', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#F8FAFC', padding: '48px' }}>
+    <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#0B1020', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#F8FAFC', padding: px }}>
       {/* Header */}
       <div style={{ maxWidth: '860px', margin: '0 auto 40px' }}>
         <div style={{ fontSize: '11px', color: '#8B5CF6', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>
           Step 2 of 3
         </div>
-        <h2 style={{ fontSize: '36px', fontWeight: 700, color: '#F8FAFC', margin: '0 0 10px' }}>
+        <h2 style={{ fontSize: isMobile ? '26px' : '36px', fontWeight: 700, color: '#F8FAFC', margin: '0 0 10px' }}>
           Channel Discovery
         </h2>
-        <p style={{ fontSize: '15px', color: '#94A3B8', margin: 0 }}>
+        <p style={{ fontSize: isMobile ? '14px' : '15px', color: '#94A3B8', margin: 0 }}>
           Confirm or select the official YouTube channel for each company
         </p>
       </div>
@@ -91,11 +95,11 @@ export function ChannelDiscovery({
         {companies.map((company) => (
           <div
             key={company}
-            style={{ background: '#121A2B', border: '1px solid #1E293B', borderRadius: '16px', padding: '24px' }}
+            style={{ background: '#121A2B', border: '1px solid #1E293B', borderRadius: '16px', padding: isMobile ? '18px' : '24px' }}
           >
             {/* Company header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>{company}</h3>
+              <h3 style={{ fontSize: isMobile ? '16px' : '18px', fontWeight: 700, color: '#F8FAFC', margin: 0 }}>{company}</h3>
               {selectedChannels[company]
                 ? <CheckCircle size={22} color="#10B981" />
                 : <AlertCircle size={22} color="#F59E0B" />}
@@ -112,7 +116,7 @@ export function ChannelDiscovery({
                 <Loader size={24} color="#8B5CF6" style={{ animation: 'spin 1s linear infinite' }} />
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '10px' }}>
                 {channels[company]?.map((channel) => {
                   const isSelected = selectedChannels[company] === channel.id;
                   return (

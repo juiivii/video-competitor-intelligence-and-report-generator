@@ -1,4 +1,5 @@
 import { youtubeService } from '@/lib/services/youtube';
+import { analyticsEngine } from '@/lib/services/analytics';
 import { CompanyChannelData } from '@/lib/types';
 
 interface AnalyzeRequest {
@@ -7,65 +8,6 @@ interface AnalyzeRequest {
     name: string;
     channelId: string;
   }[];
-}
-
-interface CompetitorAnalysis {
-  company: string;
-  subscriberCount: number;
-  totalViews: number;
-  totalVideos: number;
-  overallScore: number;
-}
-
-interface AnalysisReport {
-  timestamp?: string;
-  generatedAt?: string;
-  summary: {
-    topPerformer: string;
-    averageScore: number;
-  };
-  competitors: CompetitorAnalysis[];
-}
-
-function generateAnalysisReport(
-  mainCompany: string,
-  competitorDataList: CompanyChannelData[]
-): AnalysisReport {
-  const competitors: CompetitorAnalysis[] = competitorDataList.map((data) => {
-    const totalViews = data.videos.reduce((sum, v) => sum + v.viewCount, 0);
-    const subscriberCount = data.channel.subscriberCount || 0;
-    const videoCount = data.channel.videoCount || 0;
-
-    // Calculate score: 40% subscribers, 40% views, 20% video count
-    const subscriberScore = Math.min((subscriberCount / 10000000) * 40, 40);
-    const viewScore = Math.min((totalViews / 1000000000) * 40, 40);
-    const videoScore = Math.min((videoCount / 5000) * 20, 20);
-    const overallScore = subscriberScore + viewScore + videoScore;
-
-    return {
-      company: data.company,
-      subscriberCount,
-      totalViews: totalViews,
-      totalVideos: videoCount,
-      overallScore: Math.min(overallScore, 100),
-    };
-  });
-
-  // Find top performer
-  const topPerformer = competitors.reduce((prev, current) =>
-    current.overallScore > prev.overallScore ? current : prev
-  );
-
-  const averageScore = competitors.reduce((sum, c) => sum + c.overallScore, 0) / competitors.length;
-
-  return {
-    timestamp: new Date().toISOString(),
-    summary: {
-      topPerformer: topPerformer.company,
-      averageScore,
-    },
-    competitors,
-  };
 }
 
 export async function POST(request: Request) {
@@ -107,13 +49,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate analysis report with timestamp to prevent caching
-    const report = generateAnalysisReport(mainCompany, competitorDataList);
+    // Generate full analysis report using the analytics engine
+    // (includes analytics, strengths, weaknesses, opportunities for every competitor)
+    const report = analyticsEngine.generateAnalysisReport(mainCompany, competitorDataList);
 
-    // Add timestamp to prevent caching issues
+    // Add cache-busting key
     const reportWithTimestamp = {
       ...report,
-      generatedAt: new Date().toISOString(),
       cacheKey: `report_${Date.now()}_${Math.random()}`,
     };
 

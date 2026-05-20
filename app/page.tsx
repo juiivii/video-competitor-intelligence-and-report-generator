@@ -49,6 +49,7 @@ export default function Home() {
 
       setReport(data);
       setCurrentStep('analysis');
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } catch (error) {
       console.error('[Page] Error in handleChannelsSelected:', error);
       alert(`Analysis failed: ${error instanceof Error ? error.message : 'Please try again.'}`);
