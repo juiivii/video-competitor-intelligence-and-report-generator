@@ -17,6 +17,7 @@ export default function Home() {
     setMainCompany(main);
     setCompetitors(comps);
     setCurrentStep('discovery');
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleChannelsSelected = async (channels: Record<string, string>) => {

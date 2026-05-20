@@ -390,33 +390,32 @@ export const pptGenerator = {
       s.background = { color: T.bg };
       addSlideHeader(s, "Channel Overview", "Subscriber base, content volume, and total reach across all competitors.");
 
-      // Column headers
+      const n3 = sorted.length;
+      const s3RowH = Math.min(1.1, (6.9 - 1.7) / n3);
+      const s3CardH = s3RowH - 0.1;
+      const s3Fs = n3 >= 5 ? 11 : 12;
+
       const headers = ["Company", "Subscribers", "Total Views", "Videos", "Avg Views/Video", "Score"];
       const colX = [0.5, 2.3, 4.2, 6.1, 7.8, 11.0];
       headers.forEach((h, i) => {
         s.addText(h, {
-          x: colX[i], y: 1.35, w: i === 0 ? 1.7 : 1.7, h: 0.25,
+          x: colX[i], y: 1.35, w: 1.7, h: 0.25,
           fontSize: 10, bold: true, color: T.muted, fontFace: "Calibri",
           align: i > 0 ? "center" : "left",
         });
       });
 
       sorted.forEach((c, idx) => {
-        const y = 1.7 + idx * 1.1;
-        addCard(s, 0.5, y, 12.3, 0.85, idx === 0 ? T.primary : T.border);
-
-        // Rank dot
-        s.addShape("ellipse" as any, {
-          x: 0.65, y: y + 0.27, w: 0.3, h: 0.3,
-          fill: { color: RANK_COLORS[idx] || T.muted },
-          line: { type: "none" },
-        });
-        s.addText(c.company, { x: 1.1, y: y + 0.28, w: 1.6, h: 0.25, fontSize: 13, bold: true, color: T.text, fontFace: "Calibri" });
-        s.addText(fmt(c.subscriberCount), { x: colX[1], y: y + 0.28, w: 1.7, h: 0.25, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(fmt(c.totalViews), { x: colX[2], y: y + 0.28, w: 1.7, h: 0.25, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(fmt(c.totalVideos), { x: colX[3], y: y + 0.28, w: 1.7, h: 0.25, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(fmt(c._vpv), { x: colX[4], y: y + 0.28, w: 2.9, h: 0.25, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(`${c._score.toFixed(1)}`, { x: colX[5], y: y + 0.28, w: 1.6, h: 0.25, fontSize: 14, bold: true, color: idx === 0 ? T.warning : T.accent, fontFace: "Calibri", align: "center" });
+        const y = 1.7 + idx * s3RowH;
+        const cy = y + s3CardH * 0.28;
+        addCard(s, 0.5, y, 12.3, s3CardH, idx === 0 ? T.primary : T.border);
+        s.addShape("ellipse" as any, { x: 0.65, y: cy, w: 0.28, h: 0.28, fill: { color: RANK_COLORS[idx] || T.muted }, line: { type: "none" } });
+        s.addText(c.company, { x: 1.1, y: cy, w: 1.6, h: 0.25, fontSize: s3Fs + 1, bold: true, color: T.text, fontFace: "Calibri" });
+        s.addText(fmt(c.subscriberCount), { x: colX[1], y: cy, w: 1.7, h: 0.25, fontSize: s3Fs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(fmt(c.totalViews), { x: colX[2], y: cy, w: 1.7, h: 0.25, fontSize: s3Fs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(fmt(c.totalVideos), { x: colX[3], y: cy, w: 1.7, h: 0.25, fontSize: s3Fs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(fmt(c._vpv), { x: colX[4], y: cy, w: 2.9, h: 0.25, fontSize: s3Fs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(`${c._score.toFixed(1)}`, { x: colX[5], y: cy, w: 1.6, h: 0.25, fontSize: s3Fs + 2, bold: true, color: idx === 0 ? T.warning : T.accent, fontFace: "Calibri", align: "center" });
       });
 
       s.addText("* Score computed from subscriber reach (25%), views per video (25%), engagement (30%), and upload frequency (20%)", {
@@ -435,30 +434,28 @@ export const pptGenerator = {
 
       const freqSorted = [...enriched].sort((a, b) => b._freq - a._freq);
       const maxFreq = freqSorted[0]._freq;
+      const n4 = freqSorted.length;
+      // Reserve 0.5in for tip box at bottom; fit rows in remaining space
+      const s4RowH = Math.min(1.35, (6.85 - 1.45) / n4);
+      const s4CardH = s4RowH - 0.12;
+      const s4Fs = n4 >= 5 ? 11 : 14;
 
       freqSorted.forEach((c, idx) => {
-        const y = 1.45 + idx * 1.35;
-        addCard(s, 0.5, y, 12.3, 1.0);
+        const y = 1.45 + idx * s4RowH;
+        addCard(s, 0.5, y, 12.3, s4CardH);
 
-        s.addText(c.company, { x: 0.8, y: y + 0.15, w: 2.5, h: 0.3, fontSize: 14, bold: true, color: T.text, fontFace: "Calibri" });
-        s.addText(`${c._freq} videos/month`, { x: 0.8, y: y + 0.52, w: 2.5, h: 0.25, fontSize: 11, color: T.muted, fontFace: "Calibri" });
+        const nameY = y + s4CardH * 0.15;
+        const subY = y + s4CardH * 0.55;
+        const barY = y + s4CardH * 0.38;
 
-        // Bar track
-        s.addShape("roundRect" as any, {
-          x: 3.7, y: y + 0.35, w: 7.5, h: 0.22,
-          rectRadius: 0.06, fill: { color: T.border }, line: { type: "none" },
-        });
-        // Bar fill
+        s.addText(c.company, { x: 0.8, y: nameY, w: 2.5, h: 0.28, fontSize: s4Fs, bold: true, color: T.text, fontFace: "Calibri" });
+        s.addText(`${c._freq} videos/month`, { x: 0.8, y: subY, w: 2.5, h: 0.22, fontSize: s4Fs - 2, color: T.muted, fontFace: "Calibri" });
+
+        s.addShape("roundRect" as any, { x: 3.7, y: barY, w: 7.5, h: 0.2, rectRadius: 0.06, fill: { color: T.border }, line: { type: "none" } });
         const fillW = Math.max(0.3, (c._freq / maxFreq) * 7.5);
-        s.addShape("roundRect" as any, {
-          x: 3.7, y: y + 0.35, w: fillW, h: 0.22,
-          rectRadius: 0.06, fill: { color: RANK_COLORS[idx] || T.primary }, line: { type: "none" },
-        });
+        s.addShape("roundRect" as any, { x: 3.7, y: barY, w: fillW, h: 0.2, rectRadius: 0.06, fill: { color: RANK_COLORS[idx] || T.primary }, line: { type: "none" } });
 
-        s.addText(`${c.totalVideos.toLocaleString()} total videos`, {
-          x: 11.4, y: y + 0.32, w: 1.3, h: 0.3,
-          fontSize: 10, color: T.muted, fontFace: "Calibri", align: "right",
-        });
+        s.addText(`${c.totalVideos.toLocaleString()} total videos`, { x: 11.4, y: barY - 0.05, w: 1.3, h: 0.28, fontSize: 10, color: T.muted, fontFace: "Calibri", align: "right" });
       });
 
       addCard(s, 0.5, 7.0, 12.3, 0.3, T.teal);
@@ -478,27 +475,34 @@ export const pptGenerator = {
 
       const engSorted = [...enriched].sort((a, b) => b._eng - a._eng);
       const maxEng = engSorted[0]._eng;
+      const n5 = engSorted.length;
+      const s5RowH = Math.min(1.35, (6.9 - 1.45) / n5);
+      const s5CardH = s5RowH - 0.12;
+      const s5Fs = n5 >= 5 ? 11 : 14;
 
       engSorted.forEach((c, idx) => {
-        const y = 1.45 + idx * 1.35;
+        const y = 1.45 + idx * s5RowH;
         const engColor = c._eng >= avgEng ? T.success : T.warning;
-        addCard(s, 0.5, y, 12.3, 1.0, idx === 0 ? T.success : T.border);
+        addCard(s, 0.5, y, 12.3, s5CardH, idx === 0 ? T.success : T.border);
 
-        // Rank badge
-        s.addShape("ellipse" as any, { x: 0.65, y: y + 0.32, w: 0.35, h: 0.35, fill: { color: T.secondary }, line: { type: "none" } });
-        s.addText(`${idx + 1}`, { x: 0.65, y: y + 0.34, w: 0.35, h: 0.3, fontSize: 13, bold: true, color: T.white, align: "center", fontFace: "Calibri" });
+        const badgeY = y + s5CardH * 0.3;
+        const nameY = y + s5CardH * 0.12;
+        const engY = y + s5CardH * 0.52;
+        const barY = y + s5CardH * 0.38;
 
-        s.addText(c.company, { x: 1.2, y: y + 0.13, w: 2.4, h: 0.3, fontSize: 14, bold: true, color: T.text, fontFace: "Calibri" });
-        s.addText(`${c._eng.toFixed(2)}% Engagement`, { x: 1.2, y: y + 0.52, w: 2.4, h: 0.25, fontSize: 11, bold: true, color: engColor, fontFace: "Calibri" });
+        s.addShape("ellipse" as any, { x: 0.65, y: badgeY, w: 0.33, h: 0.33, fill: { color: T.secondary }, line: { type: "none" } });
+        s.addText(`${idx + 1}`, { x: 0.65, y: badgeY + 0.02, w: 0.33, h: 0.28, fontSize: 12, bold: true, color: T.white, align: "center", fontFace: "Calibri" });
 
-        s.addText(`${fmt(c._vpv)} avg views/video`, { x: 4.0, y: y + 0.13, w: 2.8, h: 0.25, fontSize: 11, color: T.muted, fontFace: "Calibri" });
-        s.addText(`${fmt(c._freq * 4)} est. interactions/video`, { x: 4.0, y: y + 0.47, w: 2.8, h: 0.25, fontSize: 10, color: T.muted, fontFace: "Calibri" });
+        s.addText(c.company, { x: 1.2, y: nameY, w: 2.4, h: 0.28, fontSize: s5Fs, bold: true, color: T.text, fontFace: "Calibri" });
+        s.addText(`${c._eng.toFixed(2)}% Engagement`, { x: 1.2, y: engY, w: 2.4, h: 0.22, fontSize: s5Fs - 2, bold: true, color: engColor, fontFace: "Calibri" });
 
-        // Engagement bar track
-        s.addShape("roundRect" as any, { x: 7.2, y: y + 0.38, w: 4.5, h: 0.18, rectRadius: 0.05, fill: { color: T.border }, line: { type: "none" } });
+        s.addText(`${fmt(c._vpv)} avg views/video`, { x: 4.0, y: nameY, w: 2.8, h: 0.22, fontSize: s5Fs - 2, color: T.muted, fontFace: "Calibri" });
+        s.addText(`${fmt(c._freq * 4)} est. interactions/video`, { x: 4.0, y: engY, w: 2.8, h: 0.22, fontSize: s5Fs - 3, color: T.muted, fontFace: "Calibri" });
+
+        s.addShape("roundRect" as any, { x: 7.2, y: barY, w: 4.5, h: 0.16, rectRadius: 0.05, fill: { color: T.border }, line: { type: "none" } });
         const barW = Math.max(0.2, (c._eng / maxEng) * 4.5);
-        s.addShape("roundRect" as any, { x: 7.2, y: y + 0.38, w: barW, h: 0.18, rectRadius: 0.05, fill: { color: engColor }, line: { type: "none" } });
-        s.addText(`${c._eng.toFixed(1)}%`, { x: 11.8, y: y + 0.3, w: 1, h: 0.3, fontSize: 12, bold: true, color: engColor, align: "right", fontFace: "Calibri" });
+        s.addShape("roundRect" as any, { x: 7.2, y: barY, w: barW, h: 0.16, rectRadius: 0.05, fill: { color: engColor }, line: { type: "none" } });
+        s.addText(`${c._eng.toFixed(1)}%`, { x: 11.8, y: barY - 0.08, w: 1, h: 0.28, fontSize: 12, bold: true, color: engColor, align: "right", fontFace: "Calibri" });
       });
 
       s.addText(`Market average engagement: ${avgEng.toFixed(1)}% · Channels above the line are outperforming their peers at converting views into active audience interactions.`, {
@@ -517,28 +521,34 @@ export const pptGenerator = {
 
       const vpvSorted = [...enriched].sort((a, b) => b._vpv - a._vpv);
       const maxVpv = vpvSorted[0]._vpv;
+      const n6 = vpvSorted.length;
+      const s6RowH = Math.min(1.35, (7.2 - 1.45) / n6);
+      const s6CardH = s6RowH - 0.12;
+      const s6Fs = n6 >= 5 ? 11 : 14;
 
       vpvSorted.forEach((c, idx) => {
-        const y = 1.45 + idx * 1.35;
-        addCard(s, 0.5, y, 12.3, 1.0);
+        const y = 1.45 + idx * s6RowH;
+        addCard(s, 0.5, y, 12.3, s6CardH);
 
-        s.addText(c.company, { x: 0.8, y: y + 0.12, w: 2.5, h: 0.3, fontSize: 14, bold: true, color: T.text, fontFace: "Calibri" });
+        const nameY = y + s6CardH * 0.1;
+        const barY = y + s6CardH * 0.35;
+        const subY = y + s6CardH * 0.6;
 
-        // Views bar
-        s.addShape("roundRect" as any, { x: 3.5, y: y + 0.32, w: 6.0, h: 0.2, rectRadius: 0.05, fill: { color: T.border }, line: { type: "none" } });
+        s.addText(c.company, { x: 0.8, y: nameY, w: 2.5, h: 0.28, fontSize: s6Fs, bold: true, color: T.text, fontFace: "Calibri" });
+
+        s.addShape("roundRect" as any, { x: 3.5, y: barY, w: 6.0, h: 0.18, rectRadius: 0.05, fill: { color: T.border }, line: { type: "none" } });
         const bw = Math.max(0.3, (c._vpv / maxVpv) * 6.0);
-        s.addShape("roundRect" as any, { x: 3.5, y: y + 0.32, w: bw, h: 0.2, rectRadius: 0.05, fill: { color: T.secondary }, line: { type: "none" } });
+        s.addShape("roundRect" as any, { x: 3.5, y: barY, w: bw, h: 0.18, rectRadius: 0.05, fill: { color: T.secondary }, line: { type: "none" } });
 
-        s.addText(`${fmt(c._vpv)} avg views/video`, { x: 3.5, y: y + 0.58, w: 3.5, h: 0.25, fontSize: 10, color: T.muted, fontFace: "Calibri" });
-
-        s.addText(`${c._eng.toFixed(1)}% eng.`, { x: 9.8, y: y + 0.12, w: 1.5, h: 0.3, fontSize: 13, bold: true, color: c._eng >= avgEng ? T.success : T.warning, fontFace: "Calibri", align: "center" });
+        s.addText(`${fmt(c._vpv)} avg views/video`, { x: 3.5, y: subY, w: 3.5, h: 0.22, fontSize: s6Fs - 3, color: T.muted, fontFace: "Calibri" });
+        s.addText(`${c._eng.toFixed(1)}% eng.`, { x: 9.8, y: nameY, w: 1.5, h: 0.28, fontSize: s6Fs, bold: true, color: c._eng >= avgEng ? T.success : T.warning, fontFace: "Calibri", align: "center" });
 
         const insight = c._score >= 65
           ? `Strong performer — audience resonance and content distribution working in tandem.`
           : c._score >= 40
           ? `Moderate performance — ${c._eng < avgEng ? "engagement below average, test interactive formats" : "solid engagement but views per video could grow with better distribution"}.`
           : `Opportunity channel — low views suggest content discoverability or relevance improvements needed.`;
-        s.addText(insight, { x: 0.8, y: y + 0.57, w: 8.6, h: 0.25, fontSize: 10, color: T.muted, fontFace: "Calibri" });
+        s.addText(insight, { x: 0.8, y: subY, w: 8.6, h: 0.22, fontSize: s6Fs - 3, color: T.muted, fontFace: "Calibri" });
       });
     }
 
@@ -739,22 +749,27 @@ export const pptGenerator = {
       s.addText("Vids/Month", { x: 10.2, y: 1.35, w: 1.5, h: 0.25, fontSize: 10, bold: true, color: T.muted, fontFace: "Calibri", align: "center" });
       s.addText("Score", { x: 11.9, y: 1.35, w: 1.0, h: 0.25, fontSize: 10, bold: true, color: T.muted, fontFace: "Calibri", align: "right" });
 
+      const nSc = sorted.length;
+      const scRowH = Math.min(1.22, (6.95 - 1.75) / nSc);
+      const scCardH = scRowH - 0.1;
+      const scFs = nSc >= 5 ? 11 : 12;
+
       sorted.forEach((c, idx) => {
-        const y = 1.75 + idx * 1.22;
+        const y = 1.75 + idx * scRowH;
+        const cy = y + scCardH * 0.28;
         const isLeader = idx === 0;
-        addCard(s, 0.5, y, 12.3, 0.95, isLeader ? T.warning : T.border);
+        addCard(s, 0.5, y, 12.3, scCardH, isLeader ? T.warning : T.border);
 
         const medal = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][idx] || `${idx + 1}`;
-        s.addText(medal, { x: 0.55, y: y + 0.3, w: 0.6, h: 0.3, fontSize: 16, align: "center", fontFace: "Calibri" });
-        s.addText(c.company, { x: 1.3, y: y + 0.3, w: 2.7, h: 0.3, fontSize: 14, bold: true, color: T.text, fontFace: "Calibri" });
-        s.addText(fmt(c.subscriberCount), { x: 4.2, y: y + 0.3, w: 1.8, h: 0.3, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(fmt(c._vpv), { x: 6.2, y: y + 0.3, w: 1.8, h: 0.3, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
-        s.addText(`${c._eng.toFixed(1)}%`, { x: 8.2, y: y + 0.3, w: 1.8, h: 0.3, fontSize: 12, color: c._eng >= avgEng ? T.success : T.warning, fontFace: "Calibri", align: "center" });
-        s.addText(`${c._freq}`, { x: 10.2, y: y + 0.3, w: 1.5, h: 0.3, fontSize: 12, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(medal, { x: 0.55, y: cy, w: 0.6, h: 0.28, fontSize: 14, align: "center", fontFace: "Calibri" });
+        s.addText(c.company, { x: 1.3, y: cy, w: 2.7, h: 0.28, fontSize: scFs + 1, bold: true, color: T.text, fontFace: "Calibri" });
+        s.addText(fmt(c.subscriberCount), { x: 4.2, y: cy, w: 1.8, h: 0.28, fontSize: scFs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(fmt(c._vpv), { x: 6.2, y: cy, w: 1.8, h: 0.28, fontSize: scFs, color: T.text, fontFace: "Calibri", align: "center" });
+        s.addText(`${c._eng.toFixed(1)}%`, { x: 8.2, y: cy, w: 1.8, h: 0.28, fontSize: scFs, color: c._eng >= avgEng ? T.success : T.warning, fontFace: "Calibri", align: "center" });
+        s.addText(`${c._freq}`, { x: 10.2, y: cy, w: 1.5, h: 0.28, fontSize: scFs, color: T.text, fontFace: "Calibri", align: "center" });
 
-        // Score badge
-        s.addShape("roundRect" as any, { x: 11.85, y: y + 0.22, w: 1.1, h: 0.45, rectRadius: 0.08, fill: { color: isLeader ? T.warning : T.primary, transparency: 20 }, line: { type: "none" } });
-        s.addText(`${c._score.toFixed(0)}`, { x: 11.85, y: y + 0.26, w: 1.1, h: 0.35, fontSize: 16, bold: true, color: T.white, align: "center", fontFace: "Calibri" });
+        s.addShape("roundRect" as any, { x: 11.85, y: y + scCardH * 0.18, w: 1.1, h: 0.42, rectRadius: 0.08, fill: { color: isLeader ? T.warning : T.primary, transparency: 20 }, line: { type: "none" } });
+        s.addText(`${c._score.toFixed(0)}`, { x: 11.85, y: y + scCardH * 0.2, w: 1.1, h: 0.32, fontSize: 15, bold: true, color: T.white, align: "center", fontFace: "Calibri" });
       });
 
       s.addText("Scores are composite: Subscriber Reach 25% · Views/Video 25% · Engagement Rate 30% · Upload Frequency 20%", {
