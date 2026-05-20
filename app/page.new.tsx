@@ -22,13 +22,10 @@ export default function Home() {
   const handleChannelsSelected = async (channels: Record<string, string>) => {
     setIsLoading(true);
     try {
-      const allCompanies = [mainCompany, ...competitors];
-      const competitorData = allCompanies.map((name) => ({
+      const competitorData = competitors.map((name) => ({
         name,
         channelId: channels[name],
       }));
-
-      console.log('[Page] Calling analysis API with:', { mainCompany, competitorData });
 
       const response = await fetch('/api/analysis/analyze', {
         method: 'POST',
@@ -39,52 +36,46 @@ export default function Home() {
         }),
       });
 
-      console.log('[Page] Analysis response status:', response.status);
+      if (!response.ok) throw new Error('Analysis failed');
       const data = await response.json();
-      console.log('[Page] Analysis response data:', data);
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Analysis failed');
-      }
-
       setReport(data);
       setCurrentStep('analysis');
     } catch (error) {
-      console.error('[Page] Error in handleChannelsSelected:', error);
-      alert(`Analysis failed: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      console.error('Error:', error);
+      alert('Analysis failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ minHeight: '100vh', width: '100vw', maxWidth: '100vw', overflowX: 'hidden', backgroundColor: '#0B1020' }}>
-      {currentStep === 'landing' && (
-        <LandingPage onAnalyze={handleAnalyzeClick} isLoading={isLoading} />
-      )}
-      {currentStep === 'discovery' && (
-        <ChannelDiscovery
-          companies={[mainCompany, ...competitors]}
-          onChannelsSelected={handleChannelsSelected}
-          isLoading={isLoading}
-        />
-      )}
-      {currentStep === 'analysis' && report && (
-        <div>
-          <div style={{ backgroundColor: '#0B1020', padding: '20px 48px', borderBottom: '1px solid #1E293B' }}>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {currentStep === 'landing' && (
+          <LandingPage onAnalyze={handleAnalyzeClick} isLoading={isLoading} />
+        )}
+        {currentStep === 'discovery' && (
+          <ChannelDiscovery
+            companies={competitors}
+            onChannelsSelected={handleChannelsSelected}
+            isLoading={isLoading}
+          />
+        )}
+        {currentStep === 'analysis' && report && (
+          <div>
             <button
               onClick={() => {
                 setCurrentStep('landing');
                 setReport(null);
               }}
-              style={{ color: '#8B5CF6', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600, padding: 0, fontFamily: 'inherit' }}
+              className="mb-6 text-blue-600 hover:text-blue-700 font-semibold"
             >
               ← Start New Analysis
             </button>
+            <AnalyticsDashboard report={report} />
           </div>
-          <AnalyticsDashboard report={report} />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
